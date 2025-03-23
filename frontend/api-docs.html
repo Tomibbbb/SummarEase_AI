@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - SummarEase</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SummarEase</h1>
+            <p>API Documentation</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="api-docs.html" class="active">API Documentation</a></li>
+                <li><a href="#" id="loginBtn">Login</a></li>
+            </ul>
+        </nav>
+
+        <main class="docs-content">
+            <section class="architecture">
+                <h2>Architecture Overview</h2>
+                <div class="architecture-diagram">
+                    <img src="images/architecture-diagram.png" alt="SummarEase Architecture Diagram">
+                </div>
+                <p>SummarEase follows a microservices architecture pattern, with the following components:</p>
+                <ul>
+                    <li><strong>Frontend</strong>: HTML/CSS/JavaScript client application</li>
+                    <li><strong>Backend API</strong>: FastAPI-based RESTful API</li>
+                    <li><strong>Authentication Service</strong>: JWT-based authentication</li>
+                    <li><strong>Database</strong>: PostgreSQL for persistent storage</li>
+                    <li><strong>Queue System</strong>: Redis + Celery for asynchronous processing</li>
+                    <li><strong>External API Integration</strong>: Hugging Face API for text summarization</li>
+                </ul>
+            </section>
+
+            <section class="api-reference">
+                <h2>API Reference</h2>
+                
+                <h3>Authentication</h3>
+                <div class="endpoint">
+                    <h4>POST /api/v1/login/access-token</h4>
+                    <p>Authenticate a user and get an access token.</p>
+                    <h5>Parameters:</h5>
+                    <ul>
+                        <li><code>username</code> (string): User's email</li>
+                        <li><code>password</code> (string): User's password</li>
+                    </ul>
+                    <h5>Response:</h5>
+                    <pre><code>{
+  "access_token": "eyJhbGciOiJI...",
+  "token_type": "bearer"
+}</code></pre>
+                </div>
+
+                <h3>Users</h3>
+                <div class="endpoint">
+                    <h4>POST /api/v1/users/</h4>
+                    <p>Create a new user account.</p>
+                    <h5>Parameters:</h5>
+                    <pre><code>{
+  "email": "user@example.com",
+  "password": "password123"
+}</code></pre>
+                    <h5>Response:</h5>
+                    <pre><code>{
+  "email": "user@example.com",
+  "is_active": true,
+  "role": "user",
+  "id": 1,
+  "credits": 10
+}</code></pre>
+                </div>
+
+                <div class="endpoint">
+                    <h4>GET /api/v1/users/me</h4>
+                    <p>Get current user information.</p>
+                    <h5>Headers:</h5>
+                    <ul>
+                        <li><code>Authorization: Bearer {access_token}</code></li>
+                    </ul>
+                    <h5>Response:</h5>
+                    <pre><code>{
+  "email": "user@example.com",
+  "is_active": true,
+  "role": "user",
+  "id": 1,
+  "credits": 10
+}</code></pre>
+                </div>
+
+                <h3>Summaries</h3>
+                <div class="endpoint">
+                    <h4>POST /api/v1/summaries/</h4>
+                    <p>Create a new summary task.</p>
+                    <h5>Headers:</h5>
+                    <ul>
+                        <li><code>Authorization: Bearer {access_token}</code></li>
+                    </ul>
+                    <h5>Parameters:</h5>
+                    <pre><code>{
+  "original_text": "Long text to summarize..."
+}</code></pre>
+                    <h5>Response:</h5>
+                    <pre><code>{
+  "id": 1,
+  "user_id": 1,
+  "original_text": "Long text to summarize...",
+  "summary_text": null,
+  "status": "pending",
+  "created_at": "2025-03-23T12:00:00",
+  "completed_at": null
+}</code></pre>
+                </div>
+
+                <div class="endpoint">
+                    <h4>GET /api/v1/summaries/</h4>
+                    <p>Get all summaries for the current user.</p>
+                    <h5>Headers:</h5>
+                    <ul>
+                        <li><code>Authorization: Bearer {access_token}</code></li>
+                    </ul>
+                    <h5>Response:</h5>
+                    <pre><code>[
+  {
+    "id": 1,
+    "user_id": 1,
+    "original_text": "Long text to summarize...",
+    "summary_text": "Summarized text...",
+    "status": "completed",
+    "created_at": "2025-03-23T12:00:00",
+    "completed_at": "2025-03-23T12:01:00"
+  }
+]</code></pre>
+                </div>
+
+                <div class="endpoint">
+                    <h4>GET /api/v1/summaries/{summary_id}</h4>
+                    <p>Get a specific summary by ID.</p>
+                    <h5>Headers:</h5>
+                    <ul>
+                        <li><code>Authorization: Bearer {access_token}</code></li>
+                    </ul>
+                    <h5>Response:</h5>
+                    <pre><code>{
+  "id": 1,
+  "user_id": 1,
+  "original_text": "Long text to summarize...",
+  "summary_text": "Summarized text...",
+  "status": "completed",
+  "created_at": "2025-03-23T12:00:00",
+  "completed_at": "2025-03-23T12:01:00"
+}</code></pre>
+                </div>
+            </section>
+
+            <section class="api-usage">
+                <h2>API Usage Examples</h2>
+
+                <h3>JavaScript</h3>
+                <pre><code>// Login and get token
+async function login() {
+  const response = await fetch('http://localhost:8000/api/v1/login/access-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      'username': 'user@example.com',
+      'password': 'password123'
+    })
+  });
+  
+  const data = await response.json();
+  return data.access_token;
+}
+
+// Create a summary
+async function createSummary(token, text) {
+  const response = await fetch('http://localhost:8000/api/v1/summaries/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      original_text: text
+    })
+  });
+  
+  return await response.json();
+}</code></pre>
+
+                <h3>Python</h3>
+                <pre><code>import requests
+
+# Login and get token
+def login():
+    response = requests.post(
+        "http://localhost:8000/api/v1/login/access-token",
+        data={
+            "username": "user@example.com",
+            "password": "password123"
+        }
+    )
+    return response.json()["access_token"]
+
+# Create a summary
+def create_summary(token, text):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.post(
+        "http://localhost:8000/api/v1/summaries/",
+        json={"original_text": text},
+        headers=headers
+    )
+    return response.json()</code></pre>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 SummarEase. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

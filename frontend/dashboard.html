@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - SummarEase</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SummarEase</h1>
+            <p>AI-Powered Text Summarization</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="dashboard.html" class="active">Dashboard</a></li>
+                <li><a href="api-docs.html">API Documentation</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <section class="dashboard-header">
+                <h2>Your Dashboard</h2>
+                <div class="user-info">
+                    <p>Welcome, <span id="userName">User</span></p>
+                    <p>Credits: <span id="userCredits">0</span></p>
+                </div>
+            </section>
+
+            <section class="dashboard-content">
+                <div class="summary-form">
+                    <h3>Create New Summary</h3>
+                    <form id="summaryForm">
+                        <div class="form-group">
+                            <label for="originalText">Text to Summarize:</label>
+                            <textarea id="originalText" name="originalText" rows="10" required></textarea>
+                        </div>
+                        <button type="submit" class="btn">Summarize</button>
+                    </form>
+                </div>
+
+                <div class="summary-history">
+                    <h3>Your Summaries</h3>
+                    <div id="summariesList" class="summaries-list">
+                        <!-- Summaries will be populated here by JavaScript -->
+                        <p class="empty-message">No summaries yet. Create your first summary!</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 SummarEase. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
