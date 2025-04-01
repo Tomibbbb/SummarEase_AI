@@ -2,50 +2,77 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Floa
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from app.services.huggingface_service import HuggingFaceService
 
 class Summary(Base):
-    """
-    Summary model to store text summarization requests and results.
-    
-    This model is optimized for scaling with:
-    - Indexed fields for quick lookups
-    - Separated large text fields for efficient storage
-    - Cost and usage tracking
-    """
     __tablename__ = "summaries"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     
-    # Text storage - using Text type for large inputs
+    # Text content
     original_text = Column(Text)
-    summary_text = Column(Text, nullable=True)  # Nullable as summary may be pending
+    summary_text = Column(Text, nullable=True)
     
-    # Operational fields
-    status = Column(String, default="pending", index=True)  # Options: "pending", "processing", "completed", "failed"
-    error_message = Column(String, nullable=True)  # Stores error details if processing fails
+    # Status tracking
+    status = Column(String, default="pending", index=True)
+    error_message = Column(String, nullable=True)
     
-    # Timestamps for tracking and analytics
+    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     processing_started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Performance metrics and cost tracking
-    processing_time_ms = Column(Integer, nullable=True)  # Time taken to process the summary
-    original_tokens = Column(Integer, nullable=True)  # Count of tokens in original text
-    summary_tokens = Column(Integer, nullable=True)  # Count of tokens in summary
-    processing_cost = Column(Float, default=0.0)  # Cost of this specific summary
+    # Processing metrics
+    processing_time_ms = Column(Integer, nullable=True)
+    original_tokens = Column(Integer, nullable=True)
+    summary_tokens = Column(Integer, nullable=True)
+    processing_cost = Column(Float, default=0.0)
     
-    # External API tracking
-    api_request_id = Column(String, nullable=True)  # ID from external API for tracking
-    model_used = Column(String, default="facebook/bart-large-cnn")  # Which model performed the summarization
+    # API tracking
+    api_request_id = Column(String, nullable=True)
     
-    # Relationship to User
+    # Cloud storage
+    s3_location = Column(String, nullable=True)
+    
+    # Model configuration
+    model_used = Column(String, default=HuggingFaceService.DEFAULT_MODEL)
+    max_length = Column(Integer, default=150)
+    min_length = Column(Integer, nullable=True)
+    
+    # Relationships
     user = relationship("User", backref="summaries")
     
     @property
     def processing_time_seconds(self):
-        """Convert processing time from milliseconds to seconds for display"""
+        """Get processing time in seconds."""
         if self.processing_time_ms:
             return self.processing_time_ms / 1000
         return None
+        
+    @property
+    def is_complete(self):
+        """Check if the summary is complete."""
+        return self.status == "completed"
+        
+    @property
+    def is_failed(self):
+        """Check if the summary failed."""
+        return self.status == "failed"
+        
+    @property
+    def is_processing(self):
+        """Check if the summary is currently processing."""
+        return self.status == "processing"
+        
+    @property
+    def is_pending(self):
+        """Check if the summary is pending processing."""
+        return self.status == "pending"
+        
+    @property
+    def model_display_name(self):
+        """Get a display name for the model used."""
+        if self.model_used in HuggingFaceService.MODELS:
+            return HuggingFaceService.MODELS[self.model_used]["name"]
+        return self.model_used

@@ -1,54 +1,29 @@
-from typing import Any, List
+from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app import models
 from app.api import deps
 from app.core.security import get_password_hash
-from app.db.base import get_db
-from app.schemas.user import User, UserCreate, UserUpdate
+from app.schemas.user import User, UserUpdate, UserStats
 
 router = APIRouter()
 
-
-@router.post("/", response_model=User)
-def create_user(*, db: Session = Depends(get_db), user_in: UserCreate) -> Any:
-    """Create new user."""
-    user = db.query(models.User).filter(models.User.email == user_in.email).first()
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists.",
-        )
-    hashed_password = get_password_hash(user_in.password)
-    db_user = models.User(
-        email=user_in.email,
-        hashed_password=hashed_password,
-        is_active=user_in.is_active,
-        role=user_in.role,
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
 @router.get("/me", response_model=User)
-def read_user_me(current_user: models.User = Depends(deps.get_current_active_user)) -> Any:
-    """Get current user."""
+def read_user_me(
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
     return current_user
-
 
 @router.put("/me", response_model=User)
 def update_user_me(
-    *,
-    db: Session = Depends(get_db),
-    user_in: UserUpdate,
+    db: Session = Depends(deps.get_db),
+    user_in: UserUpdate = Body(...),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
-    """Update current user."""
     user_data = jsonable_encoder(current_user)
     update_data = user_in.dict(exclude_unset=True)
     
@@ -64,3 +39,48 @@ def update_user_me(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.get("/me/stats", response_model=UserStats)
+def read_user_stats(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    total_summaries = db.query(func.count(models.Summary.id)).filter(
+        models.Summary.user_id == current_user.id
+    ).scalar()
+    
+    pending_summaries = db.query(func.count(models.Summary.id)).filter(
+        models.Summary.user_id == current_user.id,
+        models.Summary.status == "pending"
+    ).scalar()
+    
+    completed_summaries = db.query(func.count(models.Summary.id)).filter(
+        models.Summary.user_id == current_user.id,
+        models.Summary.status == "completed"
+    ).scalar()
+    
+    return {
+        "total_summaries": total_summaries,
+        "pending_summaries": pending_summaries,
+        "completed_summaries": completed_summaries,
+        "credits_remaining": current_user.credits
+    }
+
+@router.post("/add-credits", response_model=User)
+def add_user_credits(
+    db: Session = Depends(deps.get_db),
+    credits: int = Body(..., embed=True, gt=0),
+    current_user: models.User = Depends(deps.get_current_admin_user),
+    user_id: int = Body(...),
+) -> Any:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    user.credits += credits
+    db.commit()
+    db.refresh(user)
+    return user

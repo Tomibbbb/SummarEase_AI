@@ -1,33 +1,43 @@
-import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import Optional
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "SummarEase"
     API_V1_STR: str = "/api/v1"
-    
+
     # Database settings
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/summarease")
-    
+    DATABASE_URL: str = "sqlite:///./test.db"
+
     # JWT settings
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "supersecretkey")
+    JWT_SECRET: str = "supersecretkey"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+
     # Hugging Face API
-    HUGGINGFACE_API_KEY: str = os.getenv("HUGGINGFACE_API_KEY", "")
-    
+    HUGGINGFACE_API_KEY: str = ""
+
     # Redis settings
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Development settings
+    PROCESS_DIRECTLY: bool = True
+
     # Scaling settings
-    MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "4"))
-    RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "20"))
-    
+    MAX_WORKERS: int = 4
+    RATE_LIMIT_PER_MINUTE: int = 20
+
     # Initial user credits
-    DEFAULT_CREDITS: int = int(os.getenv("DEFAULT_CREDITS", "10"))
-    
+    DEFAULT_CREDITS: int = 10
+
+    # AWS settings
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: Optional[str] = None
+    S3_BUCKET_NAME: Optional[str] = None
+
     class Config:
         env_file = ".env"
+
 
 settings = Settings()

@@ -1,25 +1,61 @@
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from typing import Optional, Annotated
+from pydantic import BaseModel, Field
+from pydantic.networks import EmailStr
 
-# Shared properties
 class UserBase(BaseModel):
+    """
+    Base user schema with shared attributes.
+    """
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
     role: Optional[str] = "user"
 
-# Properties to receive via API on creation
 class UserCreate(UserBase):
+    """
+    Schema for user registration.
+    """
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8)
 
-# Properties to receive via API on update
 class UserUpdate(UserBase):
-    password: Optional[str] = None
+    """
+    Schema for updating user information.
+    """
+    password: Optional[str] = Field(None, min_length=8)
 
-# Properties to return via API
-class User(UserBase):
+class UserInDBBase(UserBase):
+    """
+    Base schema for user from database.
+    """
     id: int
     credits: int
     
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
+
+class User(UserInDBBase):
+    """
+    Schema for user response.
+    """
+    pass
+
+class UserInDB(UserInDBBase):
+    """
+    Schema for user with hashed password.
+    Internal use only.
+    """
+    hashed_password: str
+    
+class UserStats(BaseModel):
+    """
+    Schema for user statistics response.
+    """
+    total_summaries: int
+    pending_summaries: int
+    completed_summaries: int
+    credits_remaining: int
+    
+    model_config = {
+        "from_attributes": True
+    }
