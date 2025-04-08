@@ -11,13 +11,17 @@
         <header>
             <h1>SummarEase</h1>
             <p>AI-Powered Text Summarization</p>
+            <div class="auth-buttons">
+                <a href="#" id="loginBtn" class="btn btn-outline">Login</a>
+                <a href="/register.html" class="btn">Create Account</a>
+            </div>
         </header>
 
         <main>
             <section class="hero">
                 <h2>Transform Long Text into Concise Summaries</h2>
                 <p>SummarEase uses state-of-the-art AI to create high-quality summaries of your text.</p>
-                <a href="#" class="btn">Try It Now</a>
+                <a href="/dashboard.html" class="btn">Try It Now</a>
             </section>
 
             <section class="features">
@@ -36,9 +40,173 @@
             </section>
         </main>
 
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Login to SummarEase</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn">Login</button>
+                    <div class="separator">or</div>
+                    <div class="oauth-buttons">
+                        <button type="button" id="googleLoginBtn" class="btn btn-google">
+                            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNMTcuNiA5LjJsLS4xLTEuOEg5djMuNGg0LjhDMTMuNiAxMiAxMyAxMyAxMiAxMy42djIuMmgzYTguOCA4LjggMCAwIDAgMi42LTYuNnoiIGZpbGw9IiM0Mjg1RjQiIGZpbGwtcnVsZT0ibm9uemVybyIvPjxwYXRoIGQ9Ik05IDE4YzIuNCAwIDQuNS0uOCA2LTIuMmwtMy0yLjJhNS40IDUuNCAwIDAgMS04LTIuOUgxVjEzYTkgOSAwIDAgMCA4IDV6IiBmaWxsPSIjMzRBODUzIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNNCAxMC43YTUuNCA1LjQgMCAwIDEgMC0zLjRWNUgxYTkgOSAwIDAgMCAwIDhsMy0yLjN6IiBmaWxsPSIjRkJCQzA1IiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNOSAzLjZjMS4zIDAgMi41LjQgMy40IDEuM0wxNSAyLjNBOSA5IDAgMCAwIDEgNWwzIDIuNGE1LjQgNS40IDAgMCAxIDUtMy43eiIgZmlsbD0iI0VBNDMzNSIgZmlsbC1ydWxlPSJub256ZXJvIi8+PHBhdGggZD0iTTAgMGgxOHYxOEgweiIvPjwvZz48L3N2Zz4=" alt="Google">
+                            Sign in with Google
+                        </button>
+                    </div>
+                    <p class="form-footer">Don't have an account? <a href="/register.html">Register here</a></p>
+                </form>
+            </div>
+        </div>
+
         <footer>
             <p>&copy; 2025 SummarEase. All rights reserved.</p>
         </footer>
     </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Login Modal functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check URL parameters for token on return from OAuth
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            if (token) {
+                // Store token in localStorage
+                localStorage.setItem('token', token);
+                // Redirect to dashboard and remove token from URL
+                window.history.replaceState({}, document.title, "/dashboard.html");
+                window.location.href = '/dashboard.html';
+                return;
+            }
+            
+            // Check for error parameters
+            const error = urlParams.get('error');
+            if (error) {
+                showNotification(`Login failed: ${error}`, 'error');
+                // Remove error from URL
+                window.history.replaceState({}, document.title, "/");
+            }
+            
+            // Debug login button removed for security reasons
+            // Check if user is already logged in
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                // Redirect to dashboard if already logged in
+                window.location.href = '/dashboard.html';
+                return;
+            }
+            const modal = document.getElementById('loginModal');
+            const loginBtn = document.getElementById('loginBtn');
+            const closeBtn = document.querySelector('.close');
+            const googleLoginBtn = document.getElementById('googleLoginBtn');
+            
+            // Open modal
+            loginBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                modal.style.display = 'block';
+            });
+            
+            // Close modal
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Handle Google login
+            googleLoginBtn.addEventListener('click', async function() {
+                try {
+                    const response = await fetch('/api/v1/auth/google/login');
+                    const data = await response.json();
+                    
+                    if (data.auth_url) {
+                        window.location.href = data.auth_url;
+                    } else {
+                        showNotification('Failed to get Google login URL', 'error');
+                    }
+                } catch (error) {
+                    console.error('Google login error:', error);
+                    showNotification('Error connecting to Google login', 'error');
+                }
+            });
+            
+            // Handle login form submission
+            const loginForm = document.getElementById('loginForm');
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                try {
+                    console.log('Attempting login with credentials:', { email, password: '******' });
+                    const response = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({
+                            'username': email,
+                            'password': password
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Login error response:', errorText);
+                        try {
+                            const errorData = JSON.parse(errorText);
+                            // Show the error message to the user
+                            let errorMessage = 'Login failed';
+                            if (errorData.detail) {
+                                errorMessage = errorData.detail;
+                            }
+                            showNotification(errorMessage, 'error');
+                            return; // Exit the function early
+                        } catch (e) {
+                            showNotification('Login failed: Wrong email or password', 'error');
+                            return; // Exit the function early
+                        }
+                    }
+                    
+                    const data = await response.json();
+                    
+                    console.log('Login successful, token received:', data);
+                    
+                    // Store token in localStorage
+                    if (data.access_token) {
+                        localStorage.setItem('token', data.access_token);
+                        console.log('Token saved to localStorage');
+                    } else {
+                        console.error('No access_token in response:', data);
+                        throw new Error('No access token received');
+                    }
+                    
+                    // Show success notification and redirect to dashboard
+                    showNotification('Login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1500);
+                } catch (error) {
+                    showNotification('Login failed. Please check your credentials and try again.', 'error');
+                    console.error('Login error:', error);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

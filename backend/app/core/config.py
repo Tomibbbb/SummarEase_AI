@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "SummarEase"
     API_V1_STR: str = "/api/v1"
 
+    # Domain settings (for OAuth redirects)
+    BASE_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "http://localhost"
+
     # Database settings
     DATABASE_URL: str = "sqlite:///./test.db"
 
@@ -13,6 +17,12 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "supersecretkey"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Google OAuth settings
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    GOOGLE_SCOPES: str = "email profile"
 
     # Hugging Face API
     HUGGINGFACE_API_KEY: str = ""

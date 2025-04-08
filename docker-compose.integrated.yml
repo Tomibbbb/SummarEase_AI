@@ -1,7 +1,8 @@
 version: '3.8'
 
 services:
-  api:
+  # Combined frontend/backend service using our integrated app
+  integrated_app:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -9,19 +10,43 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./frontend:/app/frontend
       - ./uploads:/app/static/uploads
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
       - REDIS_URL=redis://redis:6379/0
-      - PROCESS_DIRECTLY=False
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
+      - PROCESS_DIRECTLY=True
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=
+    command: uvicorn integrated_app:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - redis
+      - db
+
+  # Alternatively, you can use separate frontend and backend services
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
+      - REDIS_URL=redis://redis:6379/0
+      - PROCESS_DIRECTLY=True
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
-      - db
       - redis
-      
+      - db
+
   frontend:
     build:
       context: ./frontend
@@ -29,7 +54,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./frontend:/usr/share/nginx/html
+      - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - api
 
@@ -57,13 +82,13 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./backend:/app
-      - ./uploads:/app/static/uploads
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
       - REDIS_URL=redis://redis:6379/0
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=
     command: celery -A celery_worker.celery worker --loglevel=info
     depends_on:
       - redis

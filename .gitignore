@@ -22,10 +22,27 @@ var/
 
 # Environment variables
 .env
+.env.local
+.env.development
+.env.production
 .venv
 env/
 venv/
 ENV/
+
+# Database files
+*.sqlite3
+*.db
+*.postgresql
+
+# Uploads and static files
+uploads/*
+!uploads/.gitkeep
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Docker 
+docker-volumes/
 
 # IDE specific files
 .idea/

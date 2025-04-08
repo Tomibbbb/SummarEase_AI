@@ -15,9 +15,10 @@
 
         <nav>
             <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="dashboard.html" class="active">Dashboard</a></li>
-                <li><a href="api-docs.html">API Documentation</a></li>
+                <li><a href="/">Home</a></li>
+                <li><a href="/dashboard.html" class="active">Dashboard</a></li>
+                <li><a href="/history.html">History</a></li>
+                <li><a href="/api-docs.html">API Documentation</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
             </ul>
         </nav>
@@ -37,18 +38,46 @@
                     <form id="summaryForm">
                         <div class="form-group">
                             <label for="originalText">Text to Summarize:</label>
-                            <textarea id="originalText" name="originalText" rows="10" required></textarea>
+                            <textarea id="originalText" name="originalText" rows="10" required placeholder="Paste or type the text you want to summarize here..."></textarea>
                         </div>
-                        <button type="submit" class="btn">Summarize</button>
+                        <div class="form-group">
+                            <label for="fileUpload">Or upload a file:</label>
+                            <input type="file" id="fileUpload" name="fileUpload" accept=".txt,.doc,.docx,.pdf">
+                            <small>Supported formats: .txt, .doc, .docx, .pdf (max 5MB)</small>
+                        </div>
+                        <button type="submit" class="btn" id="summarizeBtn">Summarize</button>
                     </form>
                 </div>
 
+                <!-- Result Modal -->
+                <div id="resultModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Summary Result</h2>
+                        <div class="summary-result">
+                            <div class="original-text">
+                                <h3>Original Text:</h3>
+                                <div id="modalOriginalText" class="text-content"></div>
+                            </div>
+                            <div class="summary-text">
+                                <h3>Summary:</h3>
+                                <div id="modalSummaryText" class="text-content"></div>
+                            </div>
+                        </div>
+                        <div class="summary-actions">
+                            <button id="saveSummaryBtn" class="btn">Save Summary</button>
+                            <button id="copyTextBtn" class="btn btn-outline">Copy to Clipboard</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="summary-history">
-                    <h3>Your Summaries</h3>
+                    <h3>Recent Summaries</h3>
                     <div id="summariesList" class="summaries-list">
                         <!-- Summaries will be populated here by JavaScript -->
                         <p class="empty-message">No summaries yet. Create your first summary!</p>
                     </div>
+                    <a href="/history.html" class="view-all">View All Summaries</a>
                 </div>
             </section>
         </main>
@@ -58,6 +87,305 @@
         </footer>
     </div>
 
-    <script src="dashboard.js"></script>
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for token in URL (from OAuth redirect)
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
+            
+            if (tokenFromUrl) {
+                // Store token from URL
+                localStorage.setItem('token', tokenFromUrl);
+                // Clean up URL by removing token parameter
+                window.history.replaceState({}, document.title, "/dashboard.html");
+            }
+            
+            // Try to get token from cookies as fallback
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            }
+            
+            const tokenFromCookie = getCookie('access_token');
+            if (tokenFromCookie && tokenFromCookie.startsWith('Bearer ')) {
+                localStorage.setItem('token', tokenFromCookie.substring(7));
+            }
+            
+            // Check for authentication
+            const token = localStorage.getItem('token');
+            if (!token) {
+                // Redirect to login if no token
+                window.location.href = '/';
+                return;
+            }
+            
+            // Elements
+            const userName = document.getElementById('userName');
+            const userCredits = document.getElementById('userCredits');
+            const summaryForm = document.getElementById('summaryForm');
+            const summariesList = document.getElementById('summariesList');
+            const fileUpload = document.getElementById('fileUpload');
+            const originalText = document.getElementById('originalText');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const resultModal = document.getElementById('resultModal');
+            const closeBtn = document.querySelector('.close');
+            const modalOriginalText = document.getElementById('modalOriginalText');
+            const modalSummaryText = document.getElementById('modalSummaryText');
+            const copyTextBtn = document.getElementById('copyTextBtn');
+            
+            // Fetch user information
+            async function getUserInfo() {
+                try {
+                    console.log('Fetching user info with token:', token);
+                    const response = await fetch('/api/v1/users/me', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch user info');
+                    }
+                    
+                    const userData = await response.json();
+                    userName.textContent = userData.email.split('@')[0];
+                    userCredits.textContent = userData.credits;
+                    
+                } catch (error) {
+                    console.error('Error fetching user info:', error);
+                }
+            }
+            
+            // Fetch recent summaries
+            async function getRecentSummaries() {
+                try {
+                    const response = await fetch('/api/v1/summaries/?limit=3', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch summaries');
+                    }
+                    
+                    const summaries = await response.json();
+                    
+                    if (summaries.length === 0) {
+                        summariesList.innerHTML = '<p class="empty-message">No summaries yet. Create your first summary!</p>';
+                        return;
+                    }
+                    
+                    summariesList.innerHTML = '';
+                    
+                    summaries.forEach(summary => {
+                        const summaryDate = new Date(summary.created_at).toLocaleDateString();
+                        const status = summary.status;
+                        const statusClass = status === 'completed' ? 'status-completed' : 'status-pending';
+                        
+                        const summaryElement = document.createElement('div');
+                        summaryElement.className = 'summary-item';
+                        summaryElement.innerHTML = `
+                            <div class="summary-header">
+                                <span class="summary-date">${summaryDate}</span>
+                                <span class="summary-status ${statusClass}">${status}</span>
+                            </div>
+                            <div class="summary-content">
+                                <p>${summary.summary_text || 'Processing...'}</p>
+                            </div>
+                            <div class="summary-actions">
+                                <button class="btn-small view-details" data-id="${summary.id}">View Details</button>
+                            </div>
+                        `;
+                        
+                        summariesList.appendChild(summaryElement);
+                    });
+                    
+                    // Add event listeners to view detail buttons
+                    document.querySelectorAll('.view-details').forEach(button => {
+                        button.addEventListener('click', async () => {
+                            const summaryId = button.getAttribute('data-id');
+                            await getSummaryDetails(summaryId);
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.error('Error fetching summaries:', error);
+                    summariesList.innerHTML = '<p class="error-message">Failed to load summaries. Please try again later.</p>';
+                }
+            }
+            
+            // Get summary details
+            async function getSummaryDetails(summaryId) {
+                try {
+                    const response = await fetch(`/api/v1/summaries/${summaryId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch summary details');
+                    }
+                    
+                    const summary = await response.json();
+                    
+                    // Display in modal
+                    modalOriginalText.textContent = summary.original_text;
+                    modalSummaryText.textContent = summary.summary_text || 'Processing...';
+                    
+                    // Show modal
+                    resultModal.style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('Error fetching summary details:', error);
+                    showNotification('Failed to load summary details. Please try again later.', 'error');
+                }
+            }
+            
+            // Handle file upload
+            fileUpload.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Check file size (5MB limit)
+                if (file.size > 5 * 1024 * 1024) {
+                    showNotification('File is too large. Maximum size is 5MB.', 'error');
+                    fileUpload.value = '';
+                    return;
+                }
+                
+                // For this example, we'll just read text files
+                // In a real app, you'd need server-side processing for docx/pdf
+                if (file.type === 'text/plain') {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        originalText.value = event.target.result;
+                    };
+                    reader.readAsText(file);
+                } else {
+                    // For non-text files, we'd usually upload to server
+                    // Here we'll just show a placeholder message
+                    originalText.value = `[Content from uploaded file: ${file.name}]`;
+                }
+            });
+            
+            // Handle form submission
+            summaryForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const text = originalText.value.trim();
+                if (!text) {
+                    showNotification('Please enter text to summarize or upload a file.', 'error');
+                    return;
+                }
+                
+                const summarizeBtn = document.getElementById('summarizeBtn');
+                summarizeBtn.disabled = true;
+                summarizeBtn.textContent = 'Processing...';
+                
+                try {
+                    const response = await fetch('/api/v1/summaries/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            original_text: text,
+                            model_id: "bart-cnn",
+                            max_length: 150,
+                            min_length: 50
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Summary creation error:', errorText);
+                        try {
+                            const errorData = JSON.parse(errorText);
+                            let errorMessage = 'Failed to create summary';
+                            if (errorData.detail) {
+                                errorMessage = typeof errorData.detail === 'object' 
+                                    ? (errorData.detail.detail || errorMessage) 
+                                    : errorData.detail;
+                            }
+                            showNotification(errorMessage, 'error');
+                        } catch (e) {
+                            showNotification('Failed to create summary: ' + errorText, 'error');
+                        }
+                        return;
+                    }
+                    
+                    const summaryData = await response.json();
+                    
+                    // For demo purposes, we'll assume the summary is processed immediately
+                    // In a real app, you'd need to poll for the result or use WebSockets
+                    
+                    // Show result in modal
+                    modalOriginalText.textContent = text;
+                    modalSummaryText.textContent = summaryData.summary_text || 'Your summary is being processed. Check the history page in a few moments.';
+                    resultModal.style.display = 'block';
+                    
+                    // Refresh recent summaries
+                    getRecentSummaries();
+                    
+                    // Update user info (credits may have changed)
+                    getUserInfo();
+                    
+                } catch (error) {
+                    console.error('Error creating summary:', error);
+                    showNotification('Failed to create summary: ' + error.message, 'error');
+                } finally {
+                    summarizeBtn.disabled = false;
+                    summarizeBtn.textContent = 'Summarize';
+                }
+            });
+            
+            // Copy to clipboard
+            copyTextBtn.addEventListener('click', () => {
+                const summaryText = modalSummaryText.textContent;
+                navigator.clipboard.writeText(summaryText)
+                    .then(() => {
+                        showNotification('Summary copied to clipboard', 'success');
+                        copyTextBtn.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyTextBtn.textContent = 'Copy to Clipboard';
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+            });
+            
+            // Close modal
+            closeBtn.addEventListener('click', () => {
+                resultModal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === resultModal) {
+                    resultModal.style.display = 'none';
+                }
+            });
+            
+            // Handle logout
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                localStorage.removeItem('token');
+                showNotification('Logged out successfully', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            });
+            
+            // Initialize
+            getUserInfo();
+            getRecentSummaries();
+        });
+    </script>
 </body>
 </html>

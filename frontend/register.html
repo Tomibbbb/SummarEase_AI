@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - SummarEase</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SummarEase</h1>
+            <p>AI-Powered Text Summarization</p>
+        </header>
+
+        <main>
+            <section class="auth-form">
+                <h2>Create Your Account</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                        <small>Password must be at least 8 characters long</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password:</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn">Create Account</button>
+                    <div class="separator">or</div>
+                    <div class="oauth-buttons">
+                        <button type="button" id="googleLoginBtn" class="btn btn-google">
+                            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNMTcuNiA5LjJsLS4xLTEuOEg5djMuNGg0LjhDMTMuNiAxMiAxMyAxMyAxMiAxMy42djIuMmgzYTguOCA4LjggMCAwIDAgMi42LTYuNnoiIGZpbGw9IiM0Mjg1RjQiIGZpbGwtcnVsZT0ibm9uemVybyIvPjxwYXRoIGQ9Ik05IDE4YzIuNCAwIDQuNS0uOCA2LTIuMmwtMy0yLjJhNS40IDUuNCAwIDAgMS04LTIuOUgxVjEzYTkgOSAwIDAgMCA4IDV6IiBmaWxsPSIjMzRBODUzIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNNCAxMC43YTUuNCA1LjQgMCAwIDEgMC0zLjRWNUgxYTkgOSAwIDAgMCAwIDhsMy0yLjN6IiBmaWxsPSIjRkJCQzA1IiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNOSAzLjZjMS4zIDAgMi41LjQgMy40IDEuM0wxNSAyLjNBOSA5IDAgMCAwIDEgNWwzIDIuNGE1LjQgNS40IDAgMCAxIDUtMy43eiIgZmlsbD0iI0VBNDMzNSIgZmlsbC1ydWxlPSJub256ZXJvIi8+PHBhdGggZD0iTTAgMGgxOHYxOEgweiIvPjwvZz48L3N2Zz4=" alt="Google">
+                            Sign up with Google
+                        </button>
+                    </div>
+                    <p class="form-footer">Already have an account? <a href="/">Login here</a></p>
+                </form>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 SummarEase. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const registerForm = document.getElementById('registerForm');
+            const googleLoginBtn = document.getElementById('googleLoginBtn');
+            
+            // Handle Google login/signup
+            googleLoginBtn.addEventListener('click', async function() {
+                try {
+                    const response = await fetch('/api/v1/auth/google/login');
+                    const data = await response.json();
+                    
+                    if (data.auth_url) {
+                        window.location.href = data.auth_url;
+                    } else {
+                        showNotification('Failed to get Google login URL', 'error');
+                    }
+                } catch (error) {
+                    console.error('Google login error:', error);
+                    showNotification('Error connecting to Google login', 'error');
+                }
+            });
+            
+            registerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                // Validate passwords match
+                if (password !== confirmPassword) {
+                    showNotification('Passwords do not match!', 'error');
+                    return;
+                }
+                
+                // Validate password length
+                if (password.length < 8) {
+                    showNotification('Password must be at least 8 characters long!', 'error');
+                    return;
+                }
+                
+                try {
+                    console.log('Attempting registration...');
+                    const response = await fetch('/api/v1/auth/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            password: password
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Registration error response:', errorText);
+                        try {
+                            const errorData = JSON.parse(errorText);
+                            // Show the error message to the user
+                            let errorMessage = 'Registration failed';
+                            if (errorData.detail) {
+                                errorMessage = errorData.detail;
+                            }
+                            showNotification(errorMessage, 'error');
+                            return; // Exit the function early
+                        } catch (e) {
+                            showNotification('Registration failed: ' + errorText, 'error');
+                            return; // Exit the function early
+                        }
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Account created successfully - now login
+                    console.log('Attempting login after registration...');
+                    const loginResponse = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({
+                            'username': email,
+                            'password': password
+                        })
+                    });
+                    
+                    if (!loginResponse.ok) {
+                        const loginErrorText = await loginResponse.text();
+                        console.error('Login error response:', loginErrorText);
+                        
+                        // Still show success message for registration even if login fails
+                        showNotification('Account created successfully, but automatic login failed. Please try logging in manually.', 'info');
+                        
+                        // Redirect to login page after a delay
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                        
+                        return; // Exit the function early
+                    }
+                    
+                    const loginData = await loginResponse.json();
+                    
+                    console.log('Login after registration successful, data:', loginData);
+                    
+                    // Store token
+                    if (loginData.access_token) {
+                        localStorage.setItem('token', loginData.access_token);
+                        console.log('Token saved to localStorage');
+                    } else {
+                        console.error('No access_token in response:', loginData);
+                        throw new Error('No access token received');
+                    }
+                    
+                    // Redirect to dashboard
+                    showNotification('Account created successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1500);
+                    
+                } catch (error) {
+                    showNotification('Registration failed: ' + error.message, 'error');
+                    console.error('Registration error:', error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
