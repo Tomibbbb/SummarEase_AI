@@ -19,13 +19,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Google OAuth settings
-    GOOGLE_CLIENT_ID: str = "222905126636-uc3r7knd5c603iob9np69qlgdt7nsqbv.apps.googleusercontent.com"
-    GOOGLE_CLIENT_SECRET: str = "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"
+    GOOGLE_CLIENT_ID: str = ""  # Set in environment or .env file
+    GOOGLE_CLIENT_SECRET: str = ""  # Set in environment or .env file
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
     GOOGLE_SCOPES: str = "email profile"
 
     # Cohere API
-    COHERE_API_KEY: str = "Kz7rbTizHN8Gq66pWdDKUXR7igH8bfmmg0FAM1wf"
+    COHERE_API_KEY: str = ""  # Set in environment or .env file
     
     # Legacy API keys (kept for backward compatibility)
     HUGGINGFACE_API_KEY: Optional[str] = None
