@@ -4,25 +4,108 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Path
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
+from pydantic import BaseModel
 
 from app import models
 from app.api import deps
 from app.core.config import settings
 from app.db.base import get_db
 from app.schemas.summary import Summary, SummaryCreate, SummaryList
-from app.services.huggingface_service import HuggingFaceService
+from app.services.cohere_service import CohereService
 from app.services.s3_service import S3Service
 from celery_worker import process_summary
 
 router = APIRouter()
+
+class CohereRequest(BaseModel):
+    user_id: int
+    text: str
+
+@router.post("/summarize")
+def create_cohere_summary(
+    *,
+    request: CohereRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(deps.get_current_active_user),
+) -> Any:
+    """Create a summary using the Cohere API."""
+    if current_user["id"] != request.user_id and current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions to create summary for this user"
+        )
+    
+    user = db.query(models.User).filter(models.User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.credits <= 0:
+        raise HTTPException(status_code=400, detail="Not enough credits to create a summary")
+    
+    from sqlalchemy.sql import text
+    db.execute(
+        text("UPDATE users SET credits = credits - 1 WHERE id = :user_id"),
+        {"user_id": request.user_id}
+    )
+    db.commit()
+    
+    summary = models.Summary(
+        user_id=request.user_id,
+        original_text=request.text,
+        status="processing",
+        model_used=CohereService.DEFAULT_MODEL,
+        processing_started_at=datetime.utcnow()
+    )
+    db.add(summary)
+    db.commit()
+    db.refresh(summary)
+    
+    result = CohereService.get_summary(
+        text=request.text,
+        model_id=CohereService.DEFAULT_MODEL
+    )
+    
+    if not result.get("success"):
+        summary.status = "failed"
+        summary.error_message = result.get("error", "Unknown error")
+        db.commit()
+        return {"success": False, "error": result.get("error", "Unknown error")}
+    
+    summary_text = result.get("summary", "")
+    summary.summary_text = summary_text
+    summary.status = "completed"
+    summary.completed_at = datetime.utcnow()
+    
+    if "stats" in result:
+        stats = result["stats"]
+        summary.processing_time_ms = stats.get("processing_time_ms")
+        summary.original_tokens = stats.get("input_tokens")
+        summary.summary_tokens = stats.get("output_tokens")
+        
+        cost_per_1k_tokens = 0.0004
+        total_tokens = (summary.original_tokens or 0) + (summary.summary_tokens or 0)
+        summary.processing_cost = (total_tokens / 1000) * cost_per_1k_tokens
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "summary": summary_text,
+        "summary_id": summary.id,
+        "stats": {
+            "processing_time_ms": summary.processing_time_ms,
+            "input_tokens": summary.original_tokens,
+            "output_tokens": summary.summary_tokens
+        }
+    }
 
 
 @router.post("/", response_model=Summary)
 def create_summary(
     *,
     db: Session = Depends(get_db),
-    summary_in: SummaryCreate = Depends(),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    summary_in: SummaryCreate,
+    current_user: dict = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Create a new summary.
@@ -31,29 +114,30 @@ def create_summary(
     and returns a summary object with status "pending".
     """
     # Check if user has enough credits
-    if current_user.credits <= 0:
+    if current_user["credits"] <= 0:
         raise HTTPException(
             status_code=400,
             detail="Not enough credits to create a summary.",
         )
     
-    # Validate model choice
-    if summary_in.model_id not in HuggingFaceService.MODELS:
-        valid_models = ", ".join(HuggingFaceService.MODELS.keys())
+    if summary_in.model_id not in CohereService.MODELS:
+        valid_models = ", ".join(CohereService.MODELS.keys())
         raise HTTPException(
             status_code=400,
             detail=f"Invalid model ID. Choose from: {valid_models}"
         )
     
-    # Deduct credits
-    current_user.credits -= 1
-    current_user.api_calls_count += 1
-    current_user.last_api_call = datetime.utcnow()
-    db.add(current_user)
+    # Deduct credits from user (using raw SQL for compatibility)
+    from sqlalchemy.sql import text
+    db.execute(
+        text("UPDATE users SET credits = credits - 1 WHERE id = :user_id"),
+        {"user_id": current_user["id"]}
+    )
+    db.commit()
     
     # Create summary
     summary = models.Summary(
-        user_id=current_user.id,
+        user_id=current_user["id"],
         original_text=summary_in.original_text,
         status="pending",
         model_used=summary_in.model_id,
@@ -70,15 +154,14 @@ def create_summary(
         process_directly = settings.PROCESS_DIRECTLY or not settings.REDIS_URL
         if process_directly:
             # Process directly (synchronously) - only for testing/development
-            from app.services.huggingface_service import HuggingFaceService
             
             # Update status
             summary.status = "processing"
             summary.processing_started_at = datetime.utcnow()
             db.commit()
             
-            # Call Hugging Face API
-            result = HuggingFaceService.get_summary(
+            # Call Cohere API
+            result = CohereService.get_summary(
                 text=summary.original_text,
                 model_id=summary.model_used,
                 max_length=summary.max_length,
@@ -93,6 +176,10 @@ def create_summary(
                 summary.summary_text = result.get("summary", "")
                 summary.status = "completed"
                 summary.completed_at = datetime.utcnow()
+                
+                # Add mock indicator if this is a mock response
+                if result.get("mock", False):
+                    summary.summary_text = "[MOCK MODE] " + summary.summary_text
                 
                 # Update statistics if available
                 if "stats" in result:
@@ -121,7 +208,7 @@ def read_summaries(
     status: Optional[str] = Query(None, description="Filter by status"),
     sort_by: str = Query("created_at", description="Sort field (created_at, status)"),
     sort_desc: bool = Query(True, description="Sort descending"),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: dict = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Retrieve a list of summaries for the current user.
@@ -129,7 +216,7 @@ def read_summaries(
     Can be filtered by status and sorted by different fields.
     """
     # Build query
-    query = db.query(models.Summary).filter(models.Summary.user_id == current_user.id)
+    query = db.query(models.Summary).filter(models.Summary.user_id == current_user["id"])
     
     # Apply status filter if provided
     if status:
@@ -153,7 +240,7 @@ def read_summaries(
 @router.get("/count", response_model=Dict[str, Any])
 def get_summary_counts(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: dict = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Get counts of summaries by status for the current user.
@@ -163,7 +250,7 @@ def get_summary_counts(
         models.Summary.status,
         func.count(models.Summary.id).label("count")
     ).filter(
-        models.Summary.user_id == current_user.id
+        models.Summary.user_id == current_user["id"]
     ).group_by(
         models.Summary.status
     ).all()
@@ -190,7 +277,7 @@ def get_available_models() -> Any:
     Get a list of available summarization models.
     """
     return {
-        "models": HuggingFaceService.get_available_models()
+        "models": CohereService.get_available_models()
     }
 
 
@@ -199,7 +286,7 @@ def read_summary(
     *,
     db: Session = Depends(get_db),
     summary_id: int = Path(..., description="The ID of the summary to get"),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     use_s3: bool = Query(True, description="Whether to fetch from S3 if available")
 ) -> Any:
     """
@@ -215,7 +302,7 @@ def read_summary(
         raise HTTPException(status_code=404, detail="Summary not found")
     
     # Check permissions - users can only see their own summaries, admins can see all
-    if summary.user_id != current_user.id and current_user.role != "admin":
+    if summary.user_id != current_user["id"] and current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # If summary has an S3 location and we want to use it, fetch from S3
@@ -242,7 +329,7 @@ def get_summary_share_url(
     *,
     db: Session = Depends(get_db),
     summary_id: int = Path(..., description="The ID of the summary to share"),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: dict = Depends(deps.get_current_active_user),
     expires_in: int = Query(3600, description="Expiration time in seconds")
 ) -> Any:
     """
@@ -257,7 +344,7 @@ def get_summary_share_url(
         raise HTTPException(status_code=404, detail="Summary not found")
     
     # Check permissions
-    if summary.user_id != current_user.id and current_user.role != "admin":
+    if summary.user_id != current_user["id"] and current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Make sure the summary is completed and has an S3 location
@@ -295,7 +382,7 @@ def delete_summary(
     *,
     db: Session = Depends(get_db),
     summary_id: int = Path(..., description="The ID of the summary to delete"),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: dict = Depends(deps.get_current_active_user),
 ) -> None:
     """
     Delete a summary by ID.
@@ -309,7 +396,7 @@ def delete_summary(
         raise HTTPException(status_code=404, detail="Summary not found")
     
     # Check permissions
-    if summary.user_id != current_user.id and current_user.role != "admin":
+    if summary.user_id != current_user["id"] and current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # If the summary has an S3 location, delete it from S3 too

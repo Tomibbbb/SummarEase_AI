@@ -16,7 +16,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SummarEase API",
-    description="Text summarization API powered by AI",
+    description="Text summarization API",
     version="0.1.0"
 )
 
@@ -47,7 +47,8 @@ async def root():
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     try:
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
@@ -60,13 +61,7 @@ async def health_check(db: Session = Depends(get_db)):
 
 @app.get("/test-s3")
 async def test_s3_connection():
-    """
-    Test S3 connection by uploading a sample file and generating a view URL.
-    
-    This endpoint helps verify that your S3 configuration is working properly.
-    It creates a small text file, uploads it to your S3 bucket, and returns
-    a pre-signed URL that you can use to view the file.
-    """
+    """Test S3 connection by uploading a sample file and generating a view URL."""
     # Make sure we have all required credentials
     if not S3_BUCKET_NAME:
         raise HTTPException(

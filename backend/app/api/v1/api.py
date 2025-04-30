@@ -11,16 +11,28 @@ from app import models
 api_router = APIRouter()
 
 # Auth routes
-api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
+api_router.include_router(
+    auth.router, 
+    prefix="/auth", 
+    tags=["Authentication"]
+)
 
 # User routes 
-api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(
+    users.router, 
+    prefix="/users", 
+    tags=["Users"]
+)
 
 # Summary routes
-api_router.include_router(summaries.router, prefix="/summaries", tags=["summaries"])
+api_router.include_router(
+    summaries.router, 
+    prefix="/summaries", 
+    tags=["Summaries"]
+)
 
 # Home routes directly in the API file
-@api_router.get("/home", tags=["home"])
+@api_router.get("/home", tags=["Dashboard"])
 def get_home_stats(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(deps.get_current_active_user),

@@ -34,7 +34,7 @@ def get_current_user(
     
     # Use raw SQL for AWS compatibility
     from sqlalchemy.sql import text
-    result = db.execute(text("SELECT id, email, username, created_at FROM users WHERE id = :user_id"), {"user_id": user_id}).first()
+    result = db.execute(text("SELECT id, email, username, credits, created_at FROM users WHERE id = :user_id"), {"user_id": user_id}).first()
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -42,11 +42,11 @@ def get_current_user(
     user = {
         "id": result[0],
         "email": result[1],
-        "username": result[2] if len(result) > 2 else result[1].split('@')[0],
-        "created_at": result[3] if len(result) > 3 else None,
+        "username": result[2] if len(result) > 2 and result[2] else result[1].split('@')[0],
+        "credits": result[3] if len(result) > 3 and result[3] is not None else 10,
+        "created_at": result[4] if len(result) > 4 else None,
         "is_active": True,
-        "role": "user",
-        "credits": 10
+        "role": "user"
     }
     
     return user

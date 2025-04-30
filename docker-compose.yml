@@ -13,13 +13,17 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379/0
-      - PROCESS_DIRECTLY=False
+      - PROCESS_DIRECTLY=True
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - DEFAULT_CREDITS=${DEFAULT_CREDITS}
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
-      - db
       - redis
       
   frontend:
@@ -33,16 +37,7 @@ services:
     depends_on:
       - api
 
-  db:
-    image: postgres:15
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=summarease
-    ports:
-      - "5432:5432"
+# Using external Google Cloud SQL database instead of local PostgreSQL
 
   redis:
     image: redis:7
@@ -59,15 +54,17 @@ services:
       - ./backend:/app
       - ./uploads:/app/static/uploads
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
+      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379/0
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
     command: celery -A celery_worker.celery worker --loglevel=info
     depends_on:
       - redis
-      - db
 
   flower:
     build:
@@ -85,5 +82,4 @@ services:
       - celery_worker
 
 volumes:
-  postgres_data:
   redis_data:

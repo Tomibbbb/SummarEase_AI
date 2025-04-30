@@ -31,6 +31,7 @@ class UsageStatistics(Base):
     # Cost tracking
     total_tokens_processed = Column(Integer, default=0)
     huggingface_api_cost = Column(Float, default=0.0)
+    cohere_api_cost = Column(Float, default=0.0)
     
     # Infrastructure stats for cost estimation
     cpu_usage_percent = Column(Float, default=0.0)

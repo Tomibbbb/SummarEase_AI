@@ -5,58 +5,38 @@ const API_BASE_URL = '/api/v1';
 
 // Notification system
 function showNotification(message, type = 'info', duration = 3000) {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     
-    // Create content
     const content = document.createElement('div');
     content.className = 'notification-content';
     
-    // Add icon based on type
     let icon = '';
     switch(type) {
-        case 'success':
-            icon = '✓';
-            break;
-        case 'error':
-            icon = '✗';
-            break;
-        default:
-            icon = 'ℹ';
+        case 'success': icon = '✓'; break;
+        case 'error': icon = '✗'; break;
+        default: icon = 'ℹ';
     }
     
-    // Build content
     content.innerHTML = `
         <span class="notification-icon">${icon}</span>
         <span class="notification-message">${message}</span>
     `;
     
-    // Create progress bar
     const progress = document.createElement('div');
     progress.className = 'notification-progress';
     const progressInner = document.createElement('div');
     progressInner.className = 'notification-progress-inner';
     progress.appendChild(progressInner);
     
-    // Add elements to notification
     notification.appendChild(content);
     notification.appendChild(progress);
-    
-    // Add to body
     document.body.appendChild(notification);
     
-    // Show with animation
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    // Remove after duration
+    setTimeout(() => notification.classList.add('show'), 10);
     setTimeout(() => {
         notification.classList.remove('show');
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
+        setTimeout(() => document.body.removeChild(notification), 300);
     }, duration);
     
     return notification;
@@ -91,6 +71,16 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchUserInfo() {
         try {
             const token = localStorage.getItem('token');
+            if (!token) {
+                localStorage.removeItem('token');
+                showNotification('No authentication token found. Please log in.', 'error');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+                return;
+            }
+            
+            console.log('Fetching user info with token');
             const response = await fetch(`${API_BASE_URL}/users/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -98,6 +88,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
+                if (response.status === 401) {
+                    // Token is invalid or expired, clear it and redirect to login
+                    localStorage.removeItem('token');
+                    showNotification('Session expired. Please log in again.', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                    return;
+                }
                 throw new Error('Failed to fetch user info');
             }
             
@@ -113,6 +112,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error fetching user info:', error);
+            // Redirect to login on auth error
+            if (error.message && error.message.includes('Failed to fetch')) {
+                localStorage.removeItem('token');
+                showNotification('Authentication error. Please log in again.', 'error');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+                return;
+            }
             showNotification('Error loading user data', 'error');
         }
     }

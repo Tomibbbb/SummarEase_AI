@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Floa
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.services.huggingface_service import HuggingFaceService
+from app.services.cohere_service import CohereService
 
 class Summary(Base):
     __tablename__ = "summaries"
@@ -36,7 +36,7 @@ class Summary(Base):
     s3_location = Column(String, nullable=True)
     
     # Model configuration
-    model_used = Column(String, default=HuggingFaceService.DEFAULT_MODEL)
+    model_used = Column(String, default=CohereService.DEFAULT_MODEL)
     max_length = Column(Integer, default=150)
     min_length = Column(Integer, nullable=True)
     
@@ -73,6 +73,6 @@ class Summary(Base):
     @property
     def model_display_name(self):
         """Get a display name for the model used."""
-        if self.model_used in HuggingFaceService.MODELS:
-            return HuggingFaceService.MODELS[self.model_used]["name"]
+        if self.model_used in CohereService.MODELS:
+            return CohereService.MODELS[self.model_used]["name"]
         return self.model_used

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost"
 
     # Database settings
-    DATABASE_URL: str = "sqlite:///./test.db"
+    DATABASE_URL: str = "sqlite:///./test.db"  # Local SQLite database for development
 
     # JWT settings
     JWT_SECRET: str = "supersecretkey"
@@ -19,13 +19,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Google OAuth settings
-    GOOGLE_CLIENT_ID: Optional[str] = None
-    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: str = "222905126636-uc3r7knd5c603iob9np69qlgdt7nsqbv.apps.googleusercontent.com"
+    GOOGLE_CLIENT_SECRET: str = "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"
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
     GOOGLE_SCOPES: str = "email profile"
 
-    # Hugging Face API
-    HUGGINGFACE_API_KEY: str = ""
+    # Cohere API
+    COHERE_API_KEY: str = "Kz7rbTizHN8Gq66pWdDKUXR7igH8bfmmg0FAM1wf"
+    
+    # Legacy API keys (kept for backward compatibility)
+    HUGGINGFACE_API_KEY: Optional[str] = None
 
     # Redis settings
     REDIS_URL: str = "redis://localhost:6379/0"

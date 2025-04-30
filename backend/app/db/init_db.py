@@ -4,13 +4,9 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.security import get_password_hash
 
-# Skip admin user creation - not compatible with AWS RDS schema
 def init_db(db: Session) -> None:
-    """
-    Initialize the database with default data.
-    """
+    """Initialize the database with default data."""
     try:
-        # Try to create tables
         print("Initializing database...")
         
         # Check if tables exist
@@ -18,14 +14,22 @@ def init_db(db: Session) -> None:
         result = db.execute(check_query).scalar()
         
         if not result:
-            print("Tables don't exist, creating them...")
-            # Create users table with the exact column structure used in AWS RDS
+            print("Creating database tables...")
+            # Create users table
             create_user_query = text("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     email VARCHAR UNIQUE,
                     username VARCHAR,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    hashed_password VARCHAR,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    credits INTEGER DEFAULT 10,
+                    role VARCHAR DEFAULT 'user',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE,
+                    api_calls_count INTEGER DEFAULT 0,
+                    last_api_call TIMESTAMP WITH TIME ZONE,
+                    total_usage_cost FLOAT DEFAULT 0.0
                 )
             """)
             db.execute(create_user_query)
@@ -35,13 +39,22 @@ def init_db(db: Session) -> None:
                 CREATE TABLE IF NOT EXISTS summaries (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER REFERENCES users(id),
-                    title VARCHAR,
                     original_text TEXT,
                     summary_text TEXT,
-                    original_file_path VARCHAR,
                     status VARCHAR DEFAULT 'pending',
+                    error_message VARCHAR,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE
+                    processing_started_at TIMESTAMP WITH TIME ZONE,
+                    completed_at TIMESTAMP WITH TIME ZONE,
+                    processing_time_ms INTEGER,
+                    original_tokens INTEGER,
+                    summary_tokens INTEGER,
+                    processing_cost FLOAT DEFAULT 0.0,
+                    api_request_id VARCHAR,
+                    s3_location VARCHAR,
+                    model_used VARCHAR DEFAULT 'bart-cnn',
+                    max_length INTEGER DEFAULT 150,
+                    min_length INTEGER
                 )
             """)
             db.execute(create_summaries_query)
@@ -49,23 +62,7 @@ def init_db(db: Session) -> None:
             db.commit()
             print("Created database tables")
         else:
-            print("Tables already exist, checking schema...")
-            
-            # Check if username column exists in users table
-            check_column_query = text("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.columns 
-                    WHERE table_name = 'users' AND column_name = 'username'
-                )
-            """)
-            has_username_column = db.execute(check_column_query).scalar()
-            
-            if not has_username_column:
-                print("Adding username column to users table")
-                add_column_query = text("ALTER TABLE users ADD COLUMN username VARCHAR")
-                db.execute(add_column_query)
-                db.commit()
-                print("Added username column")
+            print("Database tables already exist")
         
     except Exception as e:
         print(f"Database initialization error: {str(e)}")

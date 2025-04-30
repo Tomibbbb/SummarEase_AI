@@ -16,6 +16,10 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
       - REDIS_URL=redis://redis:6379/0
       - PROCESS_DIRECTLY=True
+      - HUGGINGFACE_API_KEY=jipYURXHSOHJdSmClFjqaCCKQdIWKjLicD
+      - MOCK_HUGGINGFACE=True
+      - GOOGLE_CLIENT_ID=222905126636-uc3r7knd5c603iob9np69qlgdt7nsqbv.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_REGION=us-east-1
@@ -38,6 +42,10 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
       - REDIS_URL=redis://redis:6379/0
       - PROCESS_DIRECTLY=True
+      - HUGGINGFACE_API_KEY=jipYURXHSOHJdSmClFjqaCCKQdIWKjLicD
+      - MOCK_HUGGINGFACE=True
+      - GOOGLE_CLIENT_ID=222905126636-uc3r7knd5c603iob9np69qlgdt7nsqbv.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_REGION=us-east-1
@@ -85,6 +93,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/summarease
       - REDIS_URL=redis://redis:6379/0
+      - HUGGINGFACE_API_KEY=jipYURXHSOHJdSmClFjqaCCKQdIWKjLicD
+      - MOCK_HUGGINGFACE=True
+      - GOOGLE_CLIENT_ID=222905126636-uc3r7knd5c603iob9np69qlgdt7nsqbv.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
       - AWS_ACCESS_KEY_ID=
       - AWS_SECRET_ACCESS_KEY=
       - AWS_REGION=us-east-1
