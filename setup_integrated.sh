@@ -1,4 +1,4 @@
-#!/bin/bash
+
 
 # Setup script for integrated SummarEase frontend and backend
 

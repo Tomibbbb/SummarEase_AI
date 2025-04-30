@@ -37,7 +37,7 @@ services:
     depends_on:
       - api
 
-# Using external Google Cloud SQL database instead of local PostgreSQL
+# Using external Google Cloud SQL database
 
   redis:
     image: redis:7

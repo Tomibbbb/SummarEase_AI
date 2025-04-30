@@ -10,7 +10,7 @@ SummarEase is a cloud-based text summarization service powered by artificial int
 - Integration with Hugging Face API for text summarization
 - User notification system
 - Docker deployment options (integrated or separate services)
-- AWS S3 integration for storage
+
 
 ## Architecture
 
@@ -20,8 +20,8 @@ The application follows a cloud-native microservices architecture:
 - Backend: FastAPI
 - Database: PostgreSQL
 - Queue: Redis + Celery
-- External API: Hugging Face
-- Storage: Local filesystem or AWS S3
+- External API: Cohere
+- Storage: Local filesystem 
 
 ## Docker Setup (Recommended)
 
@@ -81,9 +81,7 @@ The application supports the following environment variables:
 - `DATABASE_URL`: PostgreSQL connection string
 - `REDIS_URL`: Redis connection string
 - `PROCESS_DIRECTLY`: Set to "True" to bypass task queue
-- `AWS_ACCESS_KEY_ID`: AWS access key for S3 storage
-- `AWS_SECRET_ACCESS_KEY`: AWS secret key for S3 storage
-- `S3_BUCKET_NAME`: S3 bucket name for storage
+
 
 ## Project Structure
 

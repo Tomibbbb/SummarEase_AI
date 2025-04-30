@@ -12,7 +12,7 @@ def test_summary_create():
         user_id=1,
         original_text="Original text to be summarized.",
         model_used="bart-large-cnn",
-        status="pending"  # Explicitly setting the status since default isn't working in tests
+        status="pending"  
     )
     
     assert summary.user_id == 1
@@ -20,7 +20,7 @@ def test_summary_create():
     assert summary.model_used == "bart-large-cnn"
     assert summary.status == "pending"
     assert summary.summary_text is None
-    # Don't test created_at since it might not be set without a database connection
+    
 
 
 def test_summary_with_result():
@@ -44,9 +44,9 @@ def test_summary_representation():
         model_used="bart-large-cnn"
     )
     
-    # Just check that the string representation is not None
+    
     assert str(summary) is not None
     
     summary.status = "completed"
-    # Just check that we get a string representation after status change
+    
     assert str(summary) is not None

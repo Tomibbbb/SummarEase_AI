@@ -28,7 +28,7 @@ services:
       - redis
       - db
 
-  # Alternatively, you can use separate frontend and backend services
+  # Alternatively, we can use separate frontend and backend services
   api:
     build:
       context: ./backend

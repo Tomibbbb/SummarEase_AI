@@ -1,4 +1,4 @@
-#!/bin/bash
+
 
 # Start script for the SummarEase application
 # This script provides options to start either the integrated app or separate services
